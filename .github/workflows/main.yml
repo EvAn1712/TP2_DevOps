@@ -44,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           # Relative path to the place where the database Dockerfile is located
-          context: ./database  # Change to your actual database directory
+          context: ./database
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-database:latest  # Change the image name as needed
           push: ${{ github.ref == 'refs/heads/main' }}  # Push only on main branch
 
@@ -53,6 +53,6 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           # Relative path to the place where the httpd Dockerfile is located
-          context: ./httpd  # Change to your actual HTTPD directory
+          context: ./httpd-server
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-httpd:latest  # Change the image name as needed
           push: ${{ github.ref == 'refs/heads/main' }}  # Push only on main branch
