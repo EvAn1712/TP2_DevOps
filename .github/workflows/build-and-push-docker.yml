@@ -1,44 +1,72 @@
 name: Build and Push Docker Images
 
 on:
+  #to begin you want to launch this job in main and develop
   push:
-    branches:
-      - main
+    branches: main
+  pull_request:
+    branches: main
 
 jobs:
+  # define job to build and publish docker image
   build-and-push-docker-image:
+    needs: test-backend
+    # run only when code is compiling and tests are passing
     runs-on: ubuntu-22.04
-    needs: test-backend  # This will ensure it runs after the test-backend job
 
+    # steps to perform in job
     steps:
-      # Checkout code
       - name: Checkout code
         uses: actions/checkout@v2.5.0
 
-      # Login to DockerHub
       - name: Login to DockerHub
         run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build and push backend image
       - name: Build image and push backend
         uses: docker/build-push-action@v3
         with:
           context: ./simple-api
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-simple-api:latest
-          push: true
+          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-devops-simple-api:latest
 
-      # Build and push database image
       - name: Build image and push database
         uses: docker/build-push-action@v3
         with:
           context: ./database
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-database:latest
-          push: true
+          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-deveops-database:latest
 
-      # Build and push HTTP server image
       - name: Build image and push httpd
         uses: docker/build-push-action@v3
         with:
           context: ./http-server
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-http-server:latest
-          push: true
+          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-deveops-http-server:latest
+
+      - name: Build image and push backend
+        uses: docker/build-push-action@v3
+        with:
+          # relative path to the place where source code with Dockerfile is located
+          context: ./simple-api
+          # Note: tags has to be all lower-case
+          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-devops-simple-api:latest
+          # build on feature branches, push only on main branch
+          push: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build image and push database
+        uses: docker/build-push-action@v3
+        with:
+          # relative path to the place where source code with Dockerfile is located
+          context: ./database
+          # Note: tags has to be all lower-case
+          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-devops-database:latest
+          # build on feature branches, push only on main branch
+          push: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build image and push front
+        uses: docker/build-push-action@v3
+        with:
+          # relative path to the place where source code with Dockerfile is located
+          context: ./http-server
+          # Note: tags has to be all lower-case
+          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-devops-http-server:latest
+          # build on feature branches, push only on main branch
+          push: ${{ github.ref == 'refs/heads/main' }}
+
