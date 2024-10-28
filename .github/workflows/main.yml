@@ -1,24 +1,58 @@
 name: CI devops 2024
 on:
-  #to begin you want to launch this job in main and develop
+  # Launch this job on main branch push and for pull requests
   push:
-    branches: main
+    branches:
+      - main
   pull_request:
 
 jobs:
   test-backend:
     runs-on: ubuntu-22.04
     steps:
-      #checkout your github code using actions/checkout@v2.5.0
+      # Checkout your GitHub code using actions/checkout@v2.5.0
       - uses: actions/checkout@v2.5.0
 
-      #do the same with another action (actions/setup-java@v3) that enable to setup jdk 17
+      # Set up JDK 17
       - name: Set up JDK 17
-        uses : actions/setup-java@v3
+        uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'corretto'
 
-      #finally build your app with the latest command
+      # Build and test your app with Maven
       - name: Build and test with Maven
         run: mvn clean install --file "./simple-api/pom.xml"
+
+      # Login to DockerHub
+      - name: Login to DockerHub
+        run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build image and push backend
+      - name: Build image and push backend
+        uses: docker/build-push-action@v3
+        with:
+          # Relative path to the place where source code with Dockerfile is located
+          context: ./simple-api
+          # Note: tags must be all lower-case
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-simple-api:latest
+          # Build on feature branches, push only on main branch
+          push: ${{ github.ref == 'refs/heads/main' }}
+
+      # Build image and push database
+      - name: Build image and push database
+        uses: docker/build-push-action@v3
+        with:
+          # Relative path to the place where the database Dockerfile is located
+          context: ./database  # Change to your actual database directory
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-database:latest  # Change the image name as needed
+          push: ${{ github.ref == 'refs/heads/main' }}  # Push only on main branch
+
+      # Build image and push httpd
+      - name: Build image and push httpd
+        uses: docker/build-push-action@v3
+        with:
+          # Relative path to the place where the httpd Dockerfile is located
+          context: ./httpd  # Change to your actual HTTPD directory
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-httpd:latest  # Change the image name as needed
+          push: ${{ github.ref == 'refs/heads/main' }}  # Push only on main branch
