@@ -23,6 +23,7 @@ jobs:
       - name: Build and test with Maven
         run: mvn clean install --file "./simple-api/pom.xml"
 
+
       # Build and test your app with Maven and run SonarCloud analysis
       - name: Build, test, and analyze with Maven
         run: mvn -B verify sonar:sonar
