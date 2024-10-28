@@ -1,13 +1,9 @@
 name: Build and Push Docker Images
 
 on:
-  push:
-    branches:
-      - main  # Exécuté uniquement sur la branche principale
-  pull_request:
-    branches:
-      - main  # Exécuté pour les pull requests sur la branche principale
-
+  workflow_run: ["Test Backend"]
+  types:
+    -completed
 jobs:
   build-and-push-docker-image:
     needs: test-backend  # Ce job dépend du job test-backend
