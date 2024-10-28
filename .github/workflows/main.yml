@@ -91,7 +91,7 @@ jobs:
           # Build and test your app with Maven and run SonarCloud analysis
       - name: Build, test, and analyze with Maven
         run: mvn -B verify sonar:sonar 
-          -Dsonar.projectKey=devops-2024 
-          -Dsonar.organization=devops-school 
+          -Dsonar.projectKey=EvAn1712_TP2_DevOps
+          -Dsonar.organization=evan1712
           -Dsonar.host.url=https://sonarcloud.io 
           -Dsonar.login=${{ secrets.SONAR_TOKEN }}  --file ./simple-api/pom.xml
