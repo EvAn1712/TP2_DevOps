@@ -1,36 +1,41 @@
 name: CI devops 2024
 on:
-  #to begin you want to launch this job in main and develop
+  # Launch this job on main branch push and for pull requests
   push:
-    branches: main
+    branches:
+      - main
   pull_request:
 
 jobs:
   test-backend:
     runs-on: ubuntu-22.04
     steps:
-      #checkout your github code using actions/checkout@v2.5.0
+      # Checkout your GitHub code using actions/checkout@v2.5.0
       - uses: actions/checkout@v2.5.0
 
-      #do the same with another action (actions/setup-java@v3) that enable to setup jdk 17
+      # Set up JDK 17
       - name: Set up JDK 17
-        uses : actions/setup-java@v3
+        uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'corretto'
 
-      #finally build your app with the latest command
-      - name: Build and test with Maven
-        run: mvn clean install --file "./simple-api/pom.xml"
+      # Build and test your app with Maven and run SonarCloud analysis
+      - name: Build, test, and analyze with Maven
+        run: mvn clean install sonar:sonar \
+          -Dsonar.projectKey=devops-2024 \
+          -Dsonar.organization=devops-school \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+          --file "./simple-api/pom.xml"
 
-
-  # define job to build and publish docker image
+  # Define job to build and publish Docker images
   build-and-push-docker-image:
     needs: test-backend
-    # run only when code is compiling and tests are passing
+    # Run only when code is compiling and tests are passing
     runs-on: ubuntu-22.04
 
-    # steps to perform in job
+    # Steps to perform in job
     steps:
       - name: Checkout code
         uses: actions/checkout@v2.5.0
@@ -38,52 +43,26 @@ jobs:
       - name: Login to DockerHub
         run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Build image and push backend
       - name: Build image and push backend
         uses: docker/build-push-action@v3
         with:
           context: ./simple-api
-          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-devops-simple-api:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-simple-api:latest
+          push: ${{ github.ref == 'refs/heads/main' }}
 
+      # Build image and push database
       - name: Build image and push database
         uses: docker/build-push-action@v3
         with:
           context: ./database
-          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-deveops-database:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-database:latest
+          push: ${{ github.ref == 'refs/heads/main' }}
 
+      # Build image and push httpd
       - name: Build image and push httpd
         uses: docker/build-push-action@v3
         with:
           context: ./http-server
-          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-deveops-http-server:latest
-
-      - name: Build image and push backend
-        uses: docker/build-push-action@v3
-        with:
-          # relative path to the place where source code with Dockerfile is located
-          context: ./simple-api
-          # Note: tags has to be all lower-case
-          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-devops-simple-api:latest
-          # build on feature branches, push only on main branch
-          push: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Build image and push database
-        uses: docker/build-push-action@v3
-        with:
-          # relative path to the place where source code with Dockerfile is located
-          context: ./database
-          # Note: tags has to be all lower-case
-          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-devops-database:latest
-          # build on feature branches, push only on main branch
-          push: ${{ github.ref == 'refs/heads/main' }}
-
-
-
-      - name: Build image and push front
-        uses: docker/build-push-action@v3
-        with:
-          # relative path to the place where source code with Dockerfile is located
-          context: ./http-server
-          # Note: tags has to be all lower-case
-          tags: ${{secrets.DOCKERHUB_USERNAME}}/tp-devops-http-server:latest
-          # build on feature branches, push only on main branch
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-http-server:latest
           push: ${{ github.ref == 'refs/heads/main' }}
