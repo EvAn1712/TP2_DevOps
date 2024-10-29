@@ -1,0 +1,12 @@
+---
+# roles/launch_proxy/tasks/main.yml
+
+- name: Run Nginx Proxy
+  docker_container:
+    name: httpd
+    image: evan024/tp-devops-http-server
+    ports:
+      - "80:80"
+    networks:
+      - name : my-network
+    state: started

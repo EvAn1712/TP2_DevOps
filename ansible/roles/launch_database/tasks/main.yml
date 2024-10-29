@@ -1,0 +1,16 @@
+---
+# roles/launch_database/tasks/main.yml
+
+- name: Run PostgreSQL Database
+  docker_container:
+    name: my-db
+    image: evan024/tp-devops-database
+    env:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pwd
+      POSTGRES_DB: db
+    networks:
+      - name : my-network
+    ports:
+      - "5432:5432"
+    state: started

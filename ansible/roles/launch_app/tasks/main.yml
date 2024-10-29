@@ -1,0 +1,16 @@
+---
+# roles/launch_app/tasks/main.yml
+
+- name: Run Application
+  docker_container:
+    name: my-api
+    image: evan024/tp-devops-simple-api
+    env:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pwd
+      POSTGRES_DB: db
+    networks:
+      - name : my-network
+    ports:
+        - "8080:8080"
+    state: started
