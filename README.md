@@ -129,3 +129,251 @@ Modification du fichier `main.yml` pour inclure une étape d’analyse SonarClou
 ```
 
 Cette commande déclenche une analyse SonarCloud à chaque commit.
+
+=======================================================================================================
+
+## Question TP part 03 – Github Ansible
+
+### 3-1 Document your inventory and base commands
+
+Pour l’inventaire, il faut créer un fichier `setup.yml` dans le dossier `inventories` :
+
+```bash
+mkdir -p my-project/ansible/inventories
+```
+
+avec la structure suivante :
+```yml
+all:
+  vars:
+    ansible_user: admin # Nom d'utilisateur pour se connecter aux hôtes
+    ansible_ssh_private_key_file: /Users/evan/evan/DevOps/id_rsa  # Chemin de la clé privée SSH
+  children:
+    prod: # Groupe de serveurs de production
+      hosts:
+        evan.chinnaya.takima.cloud # IP ou le nom de l'hôte cible
+ ```
+
+#### Commandes de Base
+
+Vérification de la connexion avec `ping`
+
+Après avoir configuré l'inventaire, la commande suivante permet de tester la connexion entre le locale et les serveurs distants :
+
+```bash
+ansible all -i inventories/setup.yml -m ping
+```
+
+- ansible all : Exécute la commande sur tous les hôtes de l'inventaire.
+- -i inventories/setup.yml : Spécifie le fichier d’inventaire (setup.yml) à utiliser.
+- -m ping : Utilise le module ping pour tester la connexion aux hôtes. Cela permet de confirmer qu’Ansible peut se connecter et communiquer avec chaque serveur.
+
+Les "facts" sont des informations collectées automatiquement par Ansible sur les hôtes cibles. Ces données incluent des détails sur le système d'exploitation, le matériel et la configuration réseau. Utilisez la commande suivante pour récupérer les informations de distribution du système d'exploitation sur chaque hôte :
+
+```bash
+ansible all -i inventories/setup.yml -m setup -a "filter=ansible_distribution*"
+```
+- -m setup : Utilise le module setup d’Ansible pour collecter des informations système (facts) depuis les hôtes.
+- -a "filter=ansible_distribution*" : Utilise un filtre pour ne récupérer que les facts associés à ansible_distribution, comme le nom et la version de la distribution du système d'exploitation.
+
+--------------------------------
+
+### 3-2 Document your playbook
+
+Notre premier playbook, `playbook.yml`, était un simple test de connectivité :
+
+```yaml
+- hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Test connection
+      ping:
+```
+Ce playbook vérifie qu'Ansible peut se connecter à tous les hôtes définis dans l'inventaire.
+
+**Playbook Avancé**
+
+Nous avons créé un playbook avancé pour gérer l'installation de Docker. Ce playbook comprend les tâches suivantes :
+
+- Installer les paquets requis : Installer les prérequis comme apt-transport-https, curl, gnupg, et plus.
+- Ajouter la clé GPG de Docker : Ajouter la clé GPG officielle de Docker.
+- Configurer le dépôt Docker : Mettre en place le dépôt stable de Docker pour télécharger les paquets Docker.
+- Installer Docker : Installer le moteur Docker.
+- Vérifier que Docker est en cours d'exécution : S'assurer que Docker est actif.
+
+```yml
+---
+# roles/docker/tasks/main.yml
+
+- name: Install prerequisites for Docker
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - python3-venv
+    state: latest
+    update_cache: yes
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    state: present
+
+- name: Add Docker APT repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_facts['distribution_release'] }} stable"
+    state: present
+    update_cache: yes
+
+- name: Install Docker
+  apt:
+    name: docker-ce
+    state: present
+
+- name: Install Python3 and pip3
+  apt:
+    name:
+      - python3
+      - python3-pip
+    state: present
+
+- name: Create a virtual environment for Docker SDK
+  command: python3 -m venv /opt/docker_venv
+  args:
+    creates: /opt/docker_venv  # Only runs if this directory doesn’t exist
+
+- name: Install Docker SDK for Python in virtual environment
+  command: /opt/docker_venv/bin/pip install docker
+
+- name: Ensure Docker is running
+  service:
+    name: docker
+    state: started
+  tags: docker
+```
+**Rôles et Organisation des Tâches**
+
+
+En utilisant la commande 
+```
+ansible-galaxy init roles/docker
+```
+Nous avons créé un rôle pour l'installation de Docker. Cette structure nous permet de séparer les préoccupations et de modulariser notre code Ansible. Les principaux répertoires utilisés au sein du rôle sont :
+
+- tasks : Contient les tâches principales pour l'installation de Docker.
+- handlers : Contient des gestionnaires pour redémarrer Docker si nécessaire.
+
+Le playbook principal est situé dans le fichier `playbook.yml` et exécute les rôles suivants :
+- `docker` : Installation et configuration de Docker.
+- `create_network` : Création du réseau Docker.
+- `launch_database` : Lancement de la base de données en tant que conteneur.
+- `launch_app` : Lancement de l'application principale.
+- `launch_proxy` : Lancement du proxy HTTP.
+
+**Contenu de `playbook.yml` :**
+
+```yaml
+- hosts: all
+  gather_facts: true
+  become: true
+
+  roles:
+    - docker
+    - create_network
+    - launch_database
+    - launch_app
+    - launch_proxy
+```
+Le rôle `docker` installe Docker et ses dépendances, puis s’assure que le service Docker fonctionne.
+
+**Pour exécuter le playbook :**
+
+```bash
+ansible-playbook -i inventories/setup.yml playbook.yml
+```
+
+### Document your docker_container tasks configuration.
+
+
+Nous avons organisé notre projet en plusieurs rôles, chacun étant responsable d'une tâche spécifique. Voici les rôles et leur configuration :
+
+1. Créer le Réseau Docker
+
+Le rôle create_network configure un réseau Docker, permettant aux conteneurs de communiquer entre eux :
+
+```yaml
+
+# roles/create_network/tasks/main.yml
+
+- name: Create Docker network
+  docker_network:
+    name: my-network
+    state: present
+    driver: bridge
+  ```
+2. Lancer le Proxy Nginx
+
+Le rôle launch_proxy déploie un conteneur Nginx en tant que proxy :
+
+```yaml
+
+# roles/launch_proxy/tasks/main.yml
+
+- name: Run Nginx Proxy
+  docker_container:
+    name: httpd
+    image: evan024/tp-devops-http-server
+    ports:
+      - "80:80"
+    networks:
+      - name: my-network
+    state: started
+  ```
+3. Lancer la Base de Données PostgreSQL
+
+Le rôle launch_database configure un conteneur PostgreSQL avec les variables d'environnement nécessaires :
+
+```yaml
+
+# roles/launch_database/tasks/main.yml
+
+- name: Run PostgreSQL Database
+  docker_container:
+    name: my-db
+    image: evan024/tp-devops-database
+    env:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pwd
+      POSTGRES_DB: db
+    networks:
+      - name: my-network
+    ports:
+      - "5432:5432"
+    state: started
+  ```
+4. Lancer l'Application
+
+Le rôle launch_app déploie un conteneur pour l'application, en lui fournissant également les informations nécessaires pour se connecter à la base de données :
+
+```yaml
+
+# roles/launch_app/tasks/main.yml
+
+- name: Run Application
+  docker_container:
+    name: my-api
+    image: evan024/tp-devops-simple-api
+    env:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pwd
+      POSTGRES_DB: db
+    networks:
+      - name: my-network
+    ports:
+      - "8080:8080"
+    state: started
+```
