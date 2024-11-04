@@ -5,5 +5,5 @@ all:
   children:
     prod:
       hosts:
-        evan.chinnaya.takima.cloud  # Remplacez ceci par le nom de votre hôte ou son adresse IP
+        evan.chinnaya.takima.cloud
 
